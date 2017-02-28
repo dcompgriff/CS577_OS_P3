@@ -106,7 +106,8 @@ mappages(pde_t *pgdir, void *la, uint size, uint pa, int perm)
 // than its memory.
 // 
 // setupkvm() and exec() set up every page table like this:
-//   0..640K          : user memory (text, data, stack, heap)
+//   0..4069B         : blank page for null pointer de-references
+//   4069B..640K      : user memory (text, data, stack, heap)
 //   640K..1M         : mapped direct (for IO space)
 //   1M..end          : mapped direct (for the kernel's text and data)
 //   end..PHYSTOP     : mapped direct (kernel heap and user pages)
@@ -209,6 +210,7 @@ loaduvm(pde_t *pgdir, char *addr, struct inode *ip, uint offset, uint sz)
 
   if((uint)addr % PGSIZE != 0)
     panic("loaduvm: addr must be page aligned");
+
   for(i = 0; i < sz; i += PGSIZE){
     if((pte = walkpgdir(pgdir, addr+i, 0)) == 0)
       panic("loaduvm: address should exist");
@@ -231,13 +233,18 @@ allocuvm(pde_t *pgdir, uint oldsz, uint newsz)
   char *mem;
   uint a;
 
-  if(newsz > USERTOP)
+  //Check virtual mem bounds.
+  if(newsz + PGSIZE > USERTOP)
     return 0;
   if(newsz < oldsz)
     return oldsz;
-
+  
+  //Round up to nearest page.
   a = PGROUNDUP(oldsz);
-  for(; a < newsz; a += PGSIZE){
+  //Add base page offset to a.
+  a = (uint)a + PGSIZE;
+
+  for(; a < newsz + PGSIZE ; a += PGSIZE){
     mem = kalloc();
     if(mem == 0){
       cprintf("allocuvm out of memory\n");
@@ -306,7 +313,9 @@ copyuvm(pde_t *pgdir, uint sz)
 
   if((d = setupkvm()) == 0)
     return 0;
-  for(i = 0; i < sz; i += PGSIZE){
+  //Base user process address is PGSIZE. So, iterate from base
+  // up to the size of the process space.
+  for(i = PGSIZE; i < sz + PGSIZE; i += PGSIZE){
     if((pte = walkpgdir(pgdir, (void*)i, 0)) == 0)
       panic("copyuvm: pte should exist");
     if(!(*pte & PTE_P))
