@@ -17,8 +17,14 @@
 int
 fetchint(struct proc *p, uint addr, int *ip)
 {
-  if(addr >= p->sz || addr+4 > p->sz)
-    return -1;
+  if(p != initproc){
+    if(addr >= p->sz + PGSIZE || addr+4 > p->sz + PGSIZE || addr < PGSIZE)
+      return -1;
+  }else{
+    if(addr >= p->sz || addr+4 > p->sz)
+      return -1;
+  }
+
   *ip = *(int*)(addr);
   return 0;
 }
@@ -31,14 +37,25 @@ fetchstr(struct proc *p, uint addr, char **pp)
 {
   char *s, *ep;
 
-  if(addr >= p->sz)
+  if(p != initproc){
+    if(addr >= p->sz + PGSIZE)
+      return -1;
+    *pp = (char*)addr;
+    ep = (char*)p->sz + PGSIZE;
+    for(s = *pp; s < ep; s++)
+      if(*s == 0)
+        return s - *pp;
     return -1;
-  *pp = (char*)addr;
-  ep = (char*)p->sz;
-  for(s = *pp; s < ep; s++)
-    if(*s == 0)
-      return s - *pp;
-  return -1;
+  }else{
+    if(addr >= p->sz)
+      return -1;
+    *pp = (char*)addr;
+    ep = (char*)p->sz;
+    for(s = *pp; s < ep; s++)
+      if(*s == 0)
+        return s - *pp;
+    return -1;
+  }
 }
 
 // Fetch the nth 32-bit system call argument.
@@ -58,7 +75,7 @@ argptr(int n, char **pp, int size)
   
   if(argint(n, &i) < 0)
     return -1;
-  if((uint)i >= proc->sz || (uint)i+size > proc->sz)
+  if((uint)i >= proc->sz + PGSIZE || (uint)i+size > proc->sz + PGSIZE)
     return -1;
   *pp = (char*)i;
   return 0;
