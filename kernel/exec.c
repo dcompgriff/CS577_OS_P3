@@ -50,11 +50,12 @@ exec(char *path, char **argv)
 
   // Allocate a one-page stack at the next page boundary
   sz = PGROUNDUP(sz);
-  if((sz = allocuvm(pgdir, sz, sz + PGSIZE)) == 0)
+  if(allocstack(pgdir) == 0)
     goto bad;
 
   // Push argument strings, prepare rest of stack in ustack.
-  sp = sz;
+  /*TODO: Possible off by one error. May need to be just USERTOP*/
+  sp = USERTOP;
   for(argc = 0; argv[argc]; argc++) {
     if(argc >= MAXARG)
       goto bad;
@@ -86,6 +87,8 @@ exec(char *path, char **argv)
   proc->sz = sz;
   proc->tf->eip = elf.entry;  // main
   proc->tf->esp = sp;
+  /*TODO: Assign user space base stack address. Should be multiples of pages.*/
+  proc->stackBase = (uint)PGROUNDDOWN(USERTOP - 10);
   switchuvm(proc);
   freevm(oldpgdir);
 

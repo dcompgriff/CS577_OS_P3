@@ -61,7 +61,7 @@ mainc(void)
   // Finish setting up this processor in
   cinit();
   sti();           // enable inturrupts
-  userinit();      // first user process
+  userinit();      // first user processb
   scheduler();     // start running processes
 }
 

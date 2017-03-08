@@ -92,6 +92,7 @@ userinit(void)
   p->tf->ss = p->tf->ds;
   p->tf->eflags = FL_IF;
   p->tf->esp = 2*PGSIZE;
+  p->stackBase = 2*(PGSIZE);
   p->tf->eip = PGSIZE;  // beginning of initcode.S
 
   safestrcpy(p->name, "initcode", sizeof(p->name));
@@ -103,6 +104,7 @@ userinit(void)
 
 // Grow current process's memory by n bytes.
 // Return 0 on success, -1 on failure.
+/*TODO: Modify to match new address space mappings.*/
 int
 growproc(int n)
 {
@@ -135,12 +137,14 @@ fork(void)
     return -1;
 
   // Copy process state from p.
-  if((np->pgdir = copyuvm(proc->pgdir, proc->sz)) == 0){
+  if((np->pgdir = copyuvm(proc->pgdir, proc->sz, proc->stackBase)) == 0){
     kfree(np->kstack);
     np->kstack = 0;
     np->state = UNUSED;
     return -1;
   }
+  /*TODO: Setup new process stackBase.*/
+  np->stackBase = proc->stackBase;
   np->sz = proc->sz;
   np->parent = proc;
   *np->tf = *proc->tf;

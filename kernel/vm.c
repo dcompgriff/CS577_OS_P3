@@ -196,6 +196,7 @@ inituvm(pde_t *pgdir, char *init, uint sz)
     panic("inituvm: more than a page");
   mem = kalloc();
   memset(mem, 0, PGSIZE);
+  //Map the pages from address 4096 on to physical page for init.c code. 
   mappages(pgdir, (void*)PGSIZE, PGSIZE, PADDR(mem), PTE_W|PTE_U);
   //mappages(pgdir, 0, PGSIZE, PADDR(mem), PTE_W|PTE_U);
   memmove(mem, init, sz);
@@ -226,8 +227,41 @@ loaduvm(pde_t *pgdir, char *addr, struct inode *ip, uint offset, uint sz)
   return 0;
 }
 
+int
+allocstack(pde_t *pgdir)
+{
+    char* mem;
+    //pte_t *pte;
+    //Create and map page to va USERTOP - PGSIZE for user stack space.
+    //va0 = (uint)PGROUNDDOWN(va);
+    //Round down to the base of the highest page in mem.
+    uint a = (uint)PGROUNDDOWN(USERTOP - 10);
+    
+    //Alloc a page for stack.
+    mem = kalloc();
+    if(mem == 0){
+      cprintf("allocuvm out of memory\n");
+      return 0;
+    }
+    //Clear the data of the physical page mem.
+    memset(mem, 0, PGSIZE);
+    //Map the va starting at a (va base of user stack) to the pa of the 
+    //physical memory page located at mem.
+    mappages(pgdir, (char*)a, PGSIZE, PADDR(mem), PTE_W|PTE_U);
+
+    return PGSIZE;
+    //pte  = walkpgdir(pgdir, (char*)a, 1);
+    //if(pte == 0){
+    //    return 0;
+    //}else{
+    //    return PGSIZE;
+    //}
+}
+
 // Allocate page tables and physical memory to grow process from oldsz to
 // newsz, which need not be page aligned.  Returns new size or 0 on error.
+/*TODO: Possibly add a (Map Stack) flag that will initially set up the stack if set.*/
+//THIS WILL NOW ONLY RESIZE THE HEAP PORTION OF THE ADDRESS SPACE!
 int
 allocuvm(pde_t *pgdir, uint oldsz, uint newsz)
 {
@@ -262,6 +296,8 @@ allocuvm(pde_t *pgdir, uint oldsz, uint newsz)
 // newsz.  oldsz and newsz need not be page-aligned, nor does newsz
 // need to be less than oldsz.  oldsz can be larger than the actual
 // process size.  Returns the new process size.
+/*TODO: Possibly change so only the heap is resized if necessary.*/
+//THIS WILL NOW ONLY DEALLOC THE CODE AND HEAP PORTION OF THE ADDRESS SPACE.
 int
 deallocuvm(pde_t *pgdir, uint oldsz, uint newsz)
 {
@@ -304,8 +340,9 @@ freevm(pde_t *pgdir)
 
 // Given a parent process's page table, create a copy
 // of it for a child.
+/*TODO: Change copy to copy all valid user mem of process.*/
 pde_t*
-copyuvm(pde_t *pgdir, uint sz)
+copyuvm(pde_t *pgdir, uint sz, uint stackBase)
 {
   pde_t *d;
   pte_t *pte;
@@ -316,6 +353,8 @@ copyuvm(pde_t *pgdir, uint sz)
     return 0;
   //Base user process address is PGSIZE. So, iterate from base
   // up to the size of the process space.
+  //for(i = PGSIZE; i < sz + PGSIZE; i += PGSIZE){
+  
   for(i = PGSIZE; i < sz + PGSIZE; i += PGSIZE){
     if((pte = walkpgdir(pgdir, (void*)i, 0)) == 0)
       panic("copyuvm: pte should exist");
@@ -328,6 +367,21 @@ copyuvm(pde_t *pgdir, uint sz)
     if(mappages(d, (void*)i, PGSIZE, PADDR(mem), PTE_W|PTE_U) < 0)
       goto bad;
   }
+  //Copy the user stack for the new process.
+  /*TODO: Should be page aligned, but may need to do some rounding to get it to work.*/ 
+    i = stackBase;
+    if((pte = walkpgdir(pgdir, (void*)i, 0)) == 0)
+      panic("copyuvm: pte should exist");
+    if(!(*pte & PTE_P))
+      panic("copyuvm: page not present");
+    pa = PTE_ADDR(*pte);
+    if((mem = kalloc()) == 0)
+      goto bad;
+    memmove(mem, (char*)pa, PGSIZE);
+    if(mappages(d, (void*)i, PGSIZE, PADDR(mem), PTE_W|PTE_U) < 0)
+      goto bad;      
+
+
   return d;
 
 bad:
