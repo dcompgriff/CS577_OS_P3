@@ -37,8 +37,10 @@ fetchstr(struct proc *p, uint addr, char **pp)
       return -1;
     *pp = (char*)addr;
     if(addr >= p->stackBase){
+        //Set last pointer possible to iterate to as USERTOP bc mem access is in the stack.
         ep = (char*)(USERTOP);
     }else{
+        //Set last pointer possible to iterate to as last address in heap bc mem access is in heap.
         ep = (char*)p->sz + PGSIZE;
     }
     for(s = *pp; s < ep; s++)

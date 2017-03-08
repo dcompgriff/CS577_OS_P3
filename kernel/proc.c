@@ -110,6 +110,7 @@ growproc(int n)
 {
   uint sz;
   
+  //Note, address shifting here is already performed in allocuvm and deallocuvm.
   sz = proc->sz;
   if(n > 0){
     if((sz = allocuvm(proc->pgdir, sz, sz + n)) == 0)

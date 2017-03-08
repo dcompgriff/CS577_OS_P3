@@ -313,17 +313,35 @@ deallocuvm(pde_t *pgdir, uint oldsz, uint newsz)
   if(newsz >= oldsz)
     return oldsz;
 
-  a = PGROUNDUP(newsz);
-  for(; a  < oldsz; a += PGSIZE){
-    pte = walkpgdir(pgdir, (char*)a, 0);
-    if(pte && (*pte & PTE_P) != 0){
-      pa = PTE_ADDR(*pte);
-      if(pa == 0)
-        panic("kfree");
-      kfree((char*)pa);
-      *pte = 0;
+  if(oldsz != USERTOP){
+    //Start from new highest address for code/heap portion.
+    a = PGROUNDUP(newsz + PGSIZE);
+    //Free pages from new highest address for code/heap portion, upto the old highest address.
+    for(; a  < oldsz + PGSIZE; a += PGSIZE){
+      pte = walkpgdir(pgdir, (char*)a, 0);
+      if(pte && (*pte & PTE_P) != 0){
+        pa = PTE_ADDR(*pte);
+        if(pa == 0)
+	  panic("kfree");
+        kfree((char*)pa);
+        *pte = 0;
+      }
+    }
+  }else{
+    //Don't add offsets because the entire address space is being deallocated.
+    a = PGROUNDUP(newsz);
+    for(; a  < oldsz; a += PGSIZE){
+      pte = walkpgdir(pgdir, (char*)a, 0);
+      if(pte && (*pte & PTE_P) != 0){
+        pa = PTE_ADDR(*pte);
+        if(pa == 0)
+	  panic("kfree");
+        kfree((char*)pa);
+        *pte = 0;
+      }
     }
   }
+
   return newsz;
 }
 
@@ -357,9 +375,6 @@ copyuvm(pde_t *pgdir, uint sz, uint stackBase)
 
   if((d = setupkvm()) == 0)
     return 0;
-  //Base user process address is PGSIZE. So, iterate from base
-  // up to the size of the process space.
-  //for(i = PGSIZE; i < sz + PGSIZE; i += PGSIZE){
   
   for(i = PGSIZE; i < sz + PGSIZE; i += PGSIZE){
     if((pte = walkpgdir(pgdir, (void*)i, 0)) == 0)
@@ -374,7 +389,7 @@ copyuvm(pde_t *pgdir, uint sz, uint stackBase)
       goto bad;
   }
   //Copy the user stack for the new process.
-  /*TODO: Should be page aligned, but may need to do some rounding to get it to work.*/ 
+  /*TODO: Add a loop to copy all of the stack pages for the dynamically allocated stack.*/ 
     i = stackBase;
     if((pte = walkpgdir(pgdir, (void*)i, 0)) == 0)
       panic("copyuvm: pte should exist");
