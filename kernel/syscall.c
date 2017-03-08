@@ -36,7 +36,11 @@ fetchstr(struct proc *p, uint addr, char **pp)
     if(addr >= p->sz + PGSIZE && addr < p->stackBase)
       return -1;
     *pp = (char*)addr;
-    ep = (char*)p->sz + PGSIZE;
+    if(addr >= p->stackBase){
+        ep = (char*)(USERTOP);
+    }else{
+        ep = (char*)p->sz + PGSIZE;
+    }
     for(s = *pp; s < ep; s++)
       if(*s == 0)
         return s - *pp;
