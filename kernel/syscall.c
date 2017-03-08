@@ -17,13 +17,8 @@
 int
 fetchint(struct proc *p, uint addr, int *ip)
 {
-  if(p != initproc){
-    if(addr >= p->sz + PGSIZE || addr+4 > p->sz + PGSIZE || addr < PGSIZE)
-      return -1;
-  }else{
-    if(addr >= p->sz || addr+4 > p->sz)
-      return -1;
-  }
+  if(addr >= p->sz + PGSIZE || addr+4 > p->sz + PGSIZE || addr < PGSIZE)
+    return -1;
 
   *ip = *(int*)(addr);
   return 0;
@@ -36,8 +31,6 @@ int
 fetchstr(struct proc *p, uint addr, char **pp)
 {
   char *s, *ep;
-
-  if(p != initproc){
     if(addr >= p->sz + PGSIZE)
       return -1;
     *pp = (char*)addr;
@@ -46,16 +39,6 @@ fetchstr(struct proc *p, uint addr, char **pp)
       if(*s == 0)
         return s - *pp;
     return -1;
-  }else{
-    if(addr >= p->sz)
-      return -1;
-    *pp = (char*)addr;
-    ep = (char*)p->sz;
-    for(s = *pp; s < ep; s++)
-      if(*s == 0)
-        return s - *pp;
-    return -1;
-  }
 }
 
 // Fetch the nth 32-bit system call argument.
