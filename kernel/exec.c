@@ -55,7 +55,7 @@ exec(char *path, char **argv)
 
   // Push argument strings, prepare rest of stack in ustack.
   /*TODO: Possible off by one error. May need to be just USERTOP*/
-  sp = USERTOP;
+  sp = USERTOP - 1;
   for(argc = 0; argv[argc]; argc++) {
     if(argc >= MAXARG)
       goto bad;
