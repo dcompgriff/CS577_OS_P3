@@ -250,12 +250,35 @@ allocstack(pde_t *pgdir)
     mappages(pgdir, (char*)a, PGSIZE, PADDR(mem), PTE_W|PTE_U);
 
     return PGSIZE;
-    //pte  = walkpgdir(pgdir, (char*)a, 1);
-    //if(pte == 0){
-    //    return 0;
-    //}else{
-    //    return PGSIZE;
-    //}
+}
+
+int
+allocstackpage(pde_t *pgdir)
+{
+    char* mem;
+    //pte_t *pte;
+    //Create and map page to va USERTOP - PGSIZE for user stack space.
+    //va0 = (uint)PGROUNDDOWN(va);
+    //Round down to the base of the highest page in mem.
+    uint a = (uint)PGROUNDDOWN(proc->stackBase - 10);
+    if(a >= proc->sz + PGSIZE && a < proc->sz + PGSIZE + PGSIZE)
+      return 0;
+
+    //Alloc a page for stack.
+    mem = kalloc();
+    if(mem == 0){
+      cprintf("allocuvm out of memory\n");
+      return 0;
+    }
+    //Clear the data of the physical page mem.
+    memset(mem, 0, PGSIZE);
+    //Map the va starting at a (va base of user stack) to the pa of the 
+    //physical memory page located at mem.
+    mappages(pgdir, (char*)a, PGSIZE, PADDR(mem), PTE_W|PTE_U);
+    
+    //Update the proc->stackBase member.
+    proc->stackBase = a;
+    return PGSIZE;
 }
 
 // Allocate page tables and physical memory to grow process from oldsz to
@@ -390,7 +413,8 @@ copyuvm(pde_t *pgdir, uint sz, uint stackBase)
   }
   //Copy the user stack for the new process.
   /*TODO: Add a loop to copy all of the stack pages for the dynamically allocated stack.*/ 
-    i = stackBase;
+  i = stackBase;
+  for(; i < USERTOP; i += PGSIZE){
     if((pte = walkpgdir(pgdir, (void*)i, 0)) == 0)
       panic("copyuvm: pte should exist");
     if(!(*pte & PTE_P))
@@ -400,8 +424,8 @@ copyuvm(pde_t *pgdir, uint sz, uint stackBase)
       goto bad;
     memmove(mem, (char*)pa, PGSIZE);
     if(mappages(d, (void*)i, PGSIZE, PADDR(mem), PTE_W|PTE_U) < 0)
-      goto bad;      
-
+      goto bad; 
+  }     
 
   return d;
 

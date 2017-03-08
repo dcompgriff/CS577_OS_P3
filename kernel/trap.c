@@ -34,6 +34,12 @@ idtinit(void)
 void
 trap(struct trapframe *tf)
 {
+  //Declarations for page fault handling.
+  uint a;
+  uint lowa;
+  uint ua;
+  uint heapa;
+
   if(tf->trapno == T_SYSCALL){
     if(proc->killed)
       exit();
@@ -76,6 +82,31 @@ trap(struct trapframe *tf)
     lapiceoi();
     break;
    
+  case T_PGFLT:
+    //If we can allocate more space, then allocate the 
+    //space and retry the instruction (somehow).
+    a = rcr2();
+    lowa = (uint)PGROUNDDOWN(proc->stackBase - 10);
+    ua = proc->stackBase;
+    //The second PGSIZE is to ensure that the single page gap will never be violated.
+    heapa = proc->sz + PGSIZE + PGSIZE;
+    if(a >= lowa && a < ua && a > heapa){
+        //Access is valid for increasing the stack size.
+        if(allocstackpage(proc->pgdir)){
+          //Reset the instruction to try again.
+          tf->eip = tf->eip - 1;
+          break;
+        }else{
+          proc->killed = 1;
+          break;
+        }
+    }else{
+        //If we can't allocate more space bc 1 page away from heap, or farther 
+        //access than single stack page, then fail and kill the process by 
+        //setting proc->killed = 1.
+        proc->killed = 1;
+        break;
+    }
   default:
     if(proc == 0 || (tf->cs&3) == 0){
       // In kernel, it must be our mistake.
