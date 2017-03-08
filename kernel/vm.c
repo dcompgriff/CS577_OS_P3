@@ -276,10 +276,10 @@ allocuvm(pde_t *pgdir, uint oldsz, uint newsz)
   
   //Check to see if the new heap allocation would cross the page 
   //boundary between stack and heap. If it does, return 0.
-  uint pgBelowStack = (uint)PGROUNDDOWN(proc->baseStack - 10);
-  if(newsz + PGSIZE > pgBelowStack){
-      return 0;
-
+  uint pgBelowStack = (uint)PGROUNDDOWN(proc->stackBase - 10);
+  if(proc != initproc && newsz + PGSIZE > pgBelowStack){
+    return 0;
+  }
   //Round up to nearest page.
   a = PGROUNDUP(oldsz);
   //Add base page offset to a.

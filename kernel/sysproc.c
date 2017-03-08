@@ -49,7 +49,7 @@ sys_sbrk(void)
 
   if(argint(0, &n) < 0)
     return -1;
-  addr = proc->sz;
+  addr = proc->sz + PGSIZE;
   if(growproc(n) < 0)
     return -1;
   return addr;
