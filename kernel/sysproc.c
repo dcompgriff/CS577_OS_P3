@@ -49,7 +49,7 @@ sys_sbrk(void)
 
   if(argint(0, &n) < 0)
     return -1;
-  //Set the address of the new page to be the next highest page address of the heap.
+  //Set the start address of the new page to be the top of the heap.
   addr = proc->sz + PGSIZE;
   if(growproc(n) < 0)
     return -1;

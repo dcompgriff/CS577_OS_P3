@@ -291,14 +291,23 @@ allocuvm(pde_t *pgdir, uint oldsz, uint newsz)
   char *mem;
   uint a;
 
+  struct proc* p = proc;
+  int temp = 0;
+  if(!p){
+    temp++;
+  }
+
   //Check virtual mem bounds.
   if(newsz + PGSIZE > USERTOP)
     return 0;
   if(newsz < oldsz)
     return oldsz;
   
+
   //Check to see if the new heap allocation would cross the page 
   //boundary between stack and heap. If it does, return 0.
+  
+  //CHECKED HEAP ALLOC UP TO STACK ALLOCATION, AND WORKS.
   uint pgBelowStack = (uint)PGROUNDDOWN(proc->stackBase - 10);
   if(proc != initproc && newsz + PGSIZE > pgBelowStack){
     return 0;
